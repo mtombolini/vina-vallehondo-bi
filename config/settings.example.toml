@@ -1,0 +1,9 @@
+[paths]
+source_dir = "."
+staging_dir = "data/staging"
+processed_dir = "data/processed"
+published_dir = "data/published"
+
+[tableau]
+# El ETL publicará tablas analíticas en CSV para una conexión simple desde Tableau.
+published_format = "csv"
