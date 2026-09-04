@@ -28,16 +28,6 @@ El análisis buscará responder, entre otras, estas preguntas:
 | `origen_embarques.json` | Embarques de exportación, fechas, incoterms, puertos de destino y líneas asociadas a ventas. |
 | `README_caso.md` | Contexto de negocio, definiciones y preguntas entregadas para el caso. |
 
-## Fechas principales
-
-| Hito o fuente | Período / fecha |
-| --- | --- |
-| Período de análisis del caso | Año 2025 |
-| Ventas disponibles | 01-01-2025 a 23-06-2026 (13.968 registros) |
-| Embarques disponibles | 16-01-2025 a 12-02-2026 (3.079 embarques) |
-| Añadas en costos | 2021 a 2024 |
-| Serie de dólar observado a consumir | Año 2025 |
-
 ## Consideraciones iniciales de calidad de datos
 
 - Las fechas de ventas y embarques están en más de un formato; deberán normalizarse antes de relacionar las fuentes.
@@ -45,12 +35,13 @@ El análisis buscará responder, entre otras, estas preguntas:
 - El archivo de costos contiene encabezados repetidos y valores heterogéneos para campos como cepa y estado activo.
 - Existen registros posteriores a 2025. Se conservarán en la capa de preparación, pero el análisis inicial se enfocará en 2025 salvo que se acuerde otra ventana temporal.
 
-## Próximos pasos
+## Flujo de trabajo
 
-1. Perfilar, limpiar y estandarizar las fuentes.
-2. Definir el modelo de datos y las reglas de conversión a CLP.
-3. Construir la fuente de datos y los cálculos en Tableau.
-4. Crear tableros de ventas, mix/premiumización, margen y desempeño por mercado.
+```text
+Fuentes originales → Notebook de perfilado → ETL versionado → data/published → Tableau
+```
+
+Los notebooks se usan para exploración y validación. Las transformaciones que alimenten el tablero deben implementarse en el ETL para que sean reproducibles. Revisa [CONTRIBUTING.md](CONTRIBUTING.md) para el flujo de ramas, workspaces y PRs.
 
 ## Estructura actual
 
@@ -58,7 +49,14 @@ El análisis buscará responder, entre otras, estas preguntas:
 .
 ├── README.md
 ├── README_caso.md
+├── CONTRIBUTING.md
+├── config/
+├── data/
+├── notebooks/
 ├── origen_costos_productos.csv
 ├── origen_embarques.json
+├── src/
+├── tableau/
+├── tests/
 └── origen_vina.sqlite
 ```

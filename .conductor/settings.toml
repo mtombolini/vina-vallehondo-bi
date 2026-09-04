@@ -1,0 +1,18 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "bash scripts/setup.sh"
+run_mode = "concurrent"
+
+[scripts.run.notebooks]
+command = ".venv/bin/jupyter lab --no-browser --ip 127.0.0.1 --port $CONDUCTOR_PORT"
+default = true
+icon = "notebook-tabs"
+
+[scripts.run.etl]
+command = ".venv/bin/python -m vina_vallehondo_bi.etl.pipeline"
+icon = "database"
+
+[prompts]
+general = "Trabaja en una tarea acotada dentro del workspace actual. No modifiques main directamente; usa una rama y un PR por tarea."
+create_pr = "Describe objetivo, cambios, validaciones, impacto en datos y cualquier paso pendiente para Tableau."
