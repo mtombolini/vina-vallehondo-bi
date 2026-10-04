@@ -49,9 +49,10 @@ def clean_sales(sales: pd.DataFrame) -> pd.DataFrame:
     clean["moneda_id"] = clean["moneda_id"].fillna(clean["mercado_id"].map(market_currency)).astype("Int64")
 
     ratio = clean["monto_neto"] / _expected_amount(clean)
-    oversized = clean["cajas"].abs() > MAX_CASES_PER_SALE
-    in_bottles = oversized & (ratio < 0.5) & (clean["cajas"] % BOTTLES_PER_CASE == 0)
-    times_ten = oversized & ~in_bottles & (clean["cajas"] % 10 == 0)
+    # Staging deja nulo lo que no pudo interpretar: una fila con cajas nulas no se ajusta.
+    oversized = (clean["cajas"].abs() > MAX_CASES_PER_SALE).fillna(False)
+    in_bottles = oversized & (ratio < 0.5).fillna(False) & (clean["cajas"] % BOTTLES_PER_CASE == 0).fillna(False)
+    times_ten = oversized & ~in_bottles & (clean["cajas"] % 10 == 0).fillna(False)
     clean["ajuste_cajas"] = "ninguno"
     clean.loc[in_bottles, "ajuste_cajas"] = "botellas_a_cajas"
     clean.loc[times_ten, "ajuste_cajas"] = "dividido_por_10"
@@ -60,7 +61,8 @@ def clean_sales(sales: pd.DataFrame) -> pd.DataFrame:
     clean.loc[times_ten, "monto_neto"] = clean.loc[times_ten, "monto_neto"] / 10
 
     expected = _expected_amount(clean)
-    clean["monto_recalculado"] = (clean["monto_neto"] / expected - 1).abs() > AMOUNT_TOLERANCE
+    inconsistent = ((clean["monto_neto"] / expected - 1).abs() > AMOUNT_TOLERANCE).fillna(False)
+    clean["monto_recalculado"] = (inconsistent | (clean["monto_neto"].isna() & expected.notna())).astype(bool)
     clean.loc[clean["monto_recalculado"], "monto_neto"] = expected[clean["monto_recalculado"]].round(2)
 
     clean = clean.sort_values(["venta_id", "fila_origen"]).reset_index(drop=True)
@@ -68,7 +70,7 @@ def clean_sales(sales: pd.DataFrame) -> pd.DataFrame:
     valid_dates = clean["fecha"].mask(clean["fecha_imputada"])
     clean["fecha"] = valid_dates.ffill().bfill()
 
-    clean["es_devolucion"] = (clean["cajas"] < 0).astype(bool)
+    clean["es_devolucion"] = (clean["cajas"] < 0).fillna(False).astype(bool)
     return clean.drop_duplicates("venta_id", keep="first").reset_index(drop=True)
 
 
@@ -81,7 +83,7 @@ def clean_markets(markets: pd.DataFrame, zones: pd.DataFrame, sales: pd.DataFram
     clean = markets.merge(zones, on="zona_id", how="left")
     orphans = clean["zona"].isna()
     if orphans.any():
-        usual_zone = sales.groupby("mercado_id")["zona_origen"].agg(lambda s: s.mode().iloc[0])
+        usual_zone = sales.dropna(subset=["zona_origen"]).groupby("mercado_id")["zona_origen"].agg(lambda s: s.mode().iloc[0])
         clean.loc[orphans, "zona"] = clean.loc[orphans, "mercado_id"].map(usual_zone)
         clean.loc[orphans, "zona_id"] = clean.loc[orphans, "zona"].map(zones.set_index("zona")["zona_id"])
     return clean[["mercado_id", "pais", "zona_id", "zona", "canal"]]
@@ -115,6 +117,9 @@ def clean_costs(costs: pd.DataFrame, varieties: pd.DataFrame) -> pd.DataFrame:
     clean = clean.merge(tier_cost, on=["tier", "anada"], how="left", suffixes=("", "_tier"))
     clean["costo_imputado"] = clean["costo_caja_clp"].isna() & clean["costo_caja_clp_tier"].notna()
     clean["costo_caja_clp"] = clean["costo_caja_clp"].fillna(clean["costo_caja_clp_tier"])
+    # El estado del producto no depende de la añada: las añadas agregadas heredan el del producto.
+    active = clean["activo"].astype("boolean")
+    clean["activo"] = active.fillna(active.groupby(clean["producto_id"]).transform("first"))
     columns = ["producto_id", "producto", "cepa", "tier", "formato", "litros_por_caja", "anada", "costo_caja_clp", "costo_imputado", "activo"]
     return clean[columns].sort_values(["producto_id", "anada"]).reset_index(drop=True)
 
@@ -136,7 +141,7 @@ def clean_shipments(shipments: pd.DataFrame, clean_sales_table: pd.DataFrame) ->
         (clean["linea_orden"] == 1)
         & (clean["mercado_id"] == clean["mercado_id_venta"])
         & clean["dias_desde_venta"].between(0, MAX_DAYS_TO_SHIPMENT)
-    )
+    ).fillna(False)
     return clean.drop(columns=["fecha_venta", "mercado_id_venta"]).reset_index(drop=True)
 
 
@@ -146,11 +151,15 @@ def clean_exchange_rate(rates: pd.DataFrame) -> pd.DataFrame:
     Los días sin publicación (fines de semana y feriados) usan el último valor
     publicado, que es el dólar observado vigente ese día.
     """
-    calendar = pd.DataFrame({"fecha": pd.date_range(rates["fecha"].min(), rates["fecha"].max(), freq="D")})
+    start = pd.Timestamp(ANALYSIS_YEAR, 1, 1)
+    if rates.empty:
+        return rates.assign(publicado=pd.Series(dtype=bool))
+    # El calendario parte a más tardar el 1 de enero, aunque la serie descargada comience después.
+    calendar = pd.DataFrame({"fecha": pd.date_range(min(rates["fecha"].min(), start), rates["fecha"].max(), freq="D")})
     clean = calendar.merge(rates, on="fecha", how="left")
     clean["publicado"] = clean["dolar_observado"].notna()
     clean["dolar_observado"] = clean["dolar_observado"].ffill()
-    return clean[clean["fecha"] >= pd.Timestamp(ANALYSIS_YEAR, 1, 1)].reset_index(drop=True)
+    return clean[clean["fecha"] >= start].reset_index(drop=True)
 
 
 def run_processing(project_root: Path, staging: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:

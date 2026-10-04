@@ -164,3 +164,29 @@ def test_original_sources_are_consistent_after_cleaning(tmp_path: Path) -> None:
     with_sale = shipments.merge(sales[["venta_id", "cajas"]], on="venta_id", suffixes=("", "_venta"))
     assert (with_sale["cajas"] == with_sale["cajas_venta"].abs()).all()
     assert shipments["fecha_embarque_confiable"].sum() == 3064
+
+
+def test_clean_sales_tolerates_values_staging_could_not_parse() -> None:
+    sales = sales_frame(
+        [
+            {"venta_id": 1, "fecha": "2025-01-02", "cajas": None, "precio_unitario": 20.0, "monto_neto": 2000.0},
+            {"venta_id": 2, "fecha": "2025-01-03", "cajas": 10, "precio_unitario": 20.0, "monto_neto": None},
+        ]
+    )
+
+    clean = clean_sales(sales).set_index("venta_id")
+
+    assert pd.isna(clean.loc[1, "cajas"])
+    assert clean["ajuste_cajas"].tolist() == ["ninguno", "ninguno"]
+    assert clean["es_devolucion"].tolist() == [False, False]
+    assert clean.loc[2, "monto_neto"] == 200.0
+    assert clean["monto_recalculado"].tolist() == [False, True]
+
+
+def test_clean_exchange_rate_keeps_january_first_without_previous_year() -> None:
+    rates = pd.DataFrame({"fecha": pd.to_datetime(["2025-01-02"]), "dolar_observado": [996.46]})
+
+    clean = clean_exchange_rate(rates)
+
+    assert clean["fecha"].tolist() == [pd.Timestamp("2025-01-01"), pd.Timestamp("2025-01-02")]
+    assert pd.isna(clean.loc[0, "dolar_observado"])

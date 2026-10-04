@@ -52,7 +52,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         default=list(EXCHANGE_RATE_YEARS),
         metavar="AÑO",
-        help="Años del dólar observado a descargar (por defecto: 2024 2025 2026).",
+        help=f"Años del dólar observado a descargar (por defecto: {' '.join(map(str, EXCHANGE_RATE_YEARS))}).",
     )
     parser.add_argument(
         "--omitir-tipo-cambio",
