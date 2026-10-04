@@ -1,8 +1,8 @@
 """Punto de entrada del ETL.
 
 Valida las fuentes, prepara las capas de salida y ejecuta la ingesta a
-staging. Las transformaciones de las capas siguientes se agregarán por etapas,
-una vez validadas en los notebooks.
+staging y la limpieza a processed. El modelo publicado se agregará por etapas,
+una vez validado en los notebooks.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import argparse
 from pathlib import Path
 from typing import Iterable
 
+from vina_vallehondo_bi.etl.processed import run_processing
 from vina_vallehondo_bi.etl.staging import EXCHANGE_RATE_YEARS, run_ingestion, summarize
 
 
@@ -38,7 +39,7 @@ def prepare_output_directories(project_root: Path, directories: Iterable[Path] =
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Ingesta las fuentes de Viña Vallehondo a la capa staging.")
+    parser = argparse.ArgumentParser(description="Ingesta y limpia las fuentes de Viña Vallehondo.")
     parser.add_argument(
         "--project-root",
         type=Path,
@@ -51,7 +52,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         default=list(EXCHANGE_RATE_YEARS),
         metavar="AÑO",
-        help="Años del dólar observado a descargar (por defecto: 2025 2026).",
+        help="Años del dólar observado a descargar (por defecto: 2024 2025 2026).",
     )
     parser.add_argument(
         "--omitir-tipo-cambio",
@@ -76,7 +77,9 @@ def main() -> int:
         exchange_rate_years=args.anios_tipo_cambio,
     )
     print(summarize(tables))
-    print("Ingesta a staging lista. No se ejecutaron transformaciones de negocio.")
+    print()
+    print(summarize(run_processing(project_root, tables)))
+    print("Ingesta a staging y limpieza a processed listas.")
     return 0
 
 

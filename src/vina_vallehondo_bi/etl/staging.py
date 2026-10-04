@@ -33,8 +33,8 @@ COSTS_FILE = "origen_costos_productos.csv"
 SHIPMENTS_FILE = "origen_embarques.json"
 DIMENSION_TABLES = ("zonas", "mercados", "cepas", "monedas", "vendedores", "clientes")
 EXCHANGE_RATE_URL = "https://mindicador.cl/api/dolar/{year}"
-# Los embarques de ventas de fines de 2025 se extienden hasta inicios de 2026.
-EXCHANGE_RATE_YEARS = (2025, 2026)
+# 2024 aporta el valor vigente el 1 de enero de 2025; los embarques de fines de 2025 llegan a inicios de 2026.
+EXCHANGE_RATE_YEARS = (2024, 2025, 2026)
 
 Fetcher = Callable[[int], dict]
 
