@@ -1,7 +1,8 @@
 """Punto de entrada del ETL.
 
-Este scaffolding valida las fuentes y prepara las capas de salida. Las
-transformaciones se agregarán por etapas, una vez validadas en los notebooks.
+Valida las fuentes, prepara las capas de salida y ejecuta la ingesta a
+staging. Las transformaciones de las capas siguientes se agregarán por etapas,
+una vez validadas en los notebooks.
 """
 
 from __future__ import annotations
@@ -9,6 +10,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 from typing import Iterable
+
+from vina_vallehondo_bi.etl.staging import EXCHANGE_RATE_YEARS, run_ingestion, summarize
 
 
 SOURCE_FILES = (
@@ -35,12 +38,25 @@ def prepare_output_directories(project_root: Path, directories: Iterable[Path] =
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Prepara el entorno de salida para el ETL de Viña Vallehondo.")
+    parser = argparse.ArgumentParser(description="Ingesta las fuentes de Viña Vallehondo a la capa staging.")
     parser.add_argument(
         "--project-root",
         type=Path,
         default=Path.cwd(),
         help="Ruta de la raíz del proyecto (por defecto: directorio actual).",
+    )
+    parser.add_argument(
+        "--anios-tipo-cambio",
+        type=int,
+        nargs="+",
+        default=list(EXCHANGE_RATE_YEARS),
+        metavar="AÑO",
+        help="Años del dólar observado a descargar (por defecto: 2025 2026).",
+    )
+    parser.add_argument(
+        "--omitir-tipo-cambio",
+        action="store_true",
+        help="No consulta la API de tipo de cambio; ingesta solo las fuentes locales.",
     )
     return parser.parse_args()
 
@@ -54,7 +70,13 @@ def main() -> int:
         raise SystemExit(f"No se encontraron fuentes requeridas: {names}")
 
     prepare_output_directories(project_root)
-    print("Scaffolding ETL listo. No se ejecutaron transformaciones.")
+    tables = run_ingestion(
+        project_root,
+        include_exchange_rate=not args.omitir_tipo_cambio,
+        exchange_rate_years=args.anios_tipo_cambio,
+    )
+    print(summarize(tables))
+    print("Ingesta a staging lista. No se ejecutaron transformaciones de negocio.")
     return 0
 
 
