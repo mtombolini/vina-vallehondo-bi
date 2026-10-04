@@ -6,6 +6,7 @@ cuando no puede interpretarlo, de modo que la ingesta nunca descarta filas.
 
 from __future__ import annotations
 
+import math
 import re
 from datetime import date
 from typing import Any, Optional
@@ -33,7 +34,7 @@ _ISO_DATE = re.compile(r"(\d{4})-(\d{1,2})-(\d{1,2})")
 _SLASH_DATE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
 _SHORT_YEAR_DATE = re.compile(r"(\d{1,2})-(\d{1,2})-(\d{2})")
 _MONTH_NAME_DATE = re.compile(r"(\d{1,2})-([a-zñ]{3})-(\d{4})")
-_THOUSANDS_ONLY = re.compile(r"-?\d{1,3}(\.\d{3})+")
+_THOUSANDS_ONLY = re.compile(r"-?[1-9]\d{0,2}(\.\d{3})+")
 
 
 def _clean(value: Any) -> Optional[str]:
@@ -77,20 +78,25 @@ def parse_number(value: Any) -> Optional[float]:
     Si hay coma, la coma es el decimal y los puntos son miles (``3.651,62``).
     Sin coma, los puntos son miles solo cuando todos los grupos tienen tres
     dígitos (``38.100``, ``10.303.672``); en otro caso el punto es decimal
-    (``22.93``). Se ignoran ``$``, ``%`` y espacios.
+    (``22.93``, ``0.125``). Se ignoran ``$``, ``%`` y espacios. Los valores que
+    ya son numéricos se devuelven sin reinterpretar sus separadores.
     """
     text = _clean(value)
     if text is None:
         return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        number = float(value)
+        return number if math.isfinite(number) else None
     text = re.sub(r"[$%\s]", "", text)
     if "," in text:
         text = text.replace(".", "").replace(",", ".")
     elif _THOUSANDS_ONLY.fullmatch(text):
         text = text.replace(".", "")
     try:
-        return float(text)
+        number = float(text)
     except ValueError:
         return None
+    return number if math.isfinite(number) else None
 
 
 def parse_integer(value: Any) -> Optional[int]:

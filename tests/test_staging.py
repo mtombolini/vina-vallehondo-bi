@@ -116,6 +116,24 @@ def test_read_costs_drops_repeated_headers_and_total(project: Path) -> None:
     assert costs["activo"].tolist() == [True, True]
 
 
+def test_read_costs_counts_blank_lines_in_fila_origen(project: Path) -> None:
+    path = project / "origen_costos_productos.csv"
+    lines = path.read_bytes().split(b"\n")
+    path.write_bytes(b"\n".join(lines[:2] + [b""] + lines[2:]))
+
+    assert read_costs(project)["fila_origen"].tolist() == [2, 5]
+
+
+def test_read_sales_nulls_dates_outside_pandas_range(project: Path) -> None:
+    with sqlite3.connect(project / "origen_vina.sqlite") as connection:
+        connection.execute("UPDATE ventas SET fecha = '1025-03-25' WHERE rowid = 1")
+
+    sales = read_sales(project)
+
+    assert pd.isna(sales.loc[0, "fecha"])
+    assert sales.loc[1, "fecha"] == pd.Timestamp("2025-09-24")
+
+
 def test_read_shipments_flattens_lines_and_keeps_repeated_ids(project: Path) -> None:
     shipments = read_shipments(project)
 
@@ -137,6 +155,14 @@ def test_read_exchange_rate_falls_back_to_cache(tmp_path: Path) -> None:
     expected = read_exchange_rate(tmp_path, years=(2025,), fetcher=fake_fetcher)
 
     pd.testing.assert_frame_equal(read_exchange_rate(tmp_path, years=(2025,), fetcher=failing_fetcher), expected)
+
+
+def test_read_exchange_rate_keeps_cache_when_response_has_no_series(tmp_path: Path) -> None:
+    expected = read_exchange_rate(tmp_path, years=(2025,), fetcher=fake_fetcher)
+
+    for payload in ({"error": "sin datos"}, {"serie": []}):
+        pd.testing.assert_frame_equal(read_exchange_rate(tmp_path, years=(2025,), fetcher=lambda year: payload), expected)
+    assert json.loads((tmp_path / "data/staging/tipo_cambio_2025.json").read_text(encoding="utf-8")) == fake_fetcher(2025)
 
 
 def test_read_exchange_rate_fails_without_cache(tmp_path: Path) -> None:

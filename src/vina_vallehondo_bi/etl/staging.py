@@ -8,9 +8,11 @@ informa en el resumen de la ingesta.
 
 from __future__ import annotations
 
+import http.client
 import json
 import sqlite3
 import urllib.request
+from contextlib import closing
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
@@ -46,7 +48,15 @@ def _numbers(values: Iterable[Any]) -> pd.Series:
 
 
 def _dates(values: Iterable[Any]) -> pd.Series:
-    return pd.to_datetime(pd.Series([parse_date(value) for value in values], dtype="object"))
+    # Las fechas fuera del rango de pandas (años como 1025 o 3025) quedan nulas en vez de abortar la ingesta.
+    return pd.to_datetime(pd.Series([parse_date(value) for value in values], dtype="object"), errors="coerce")
+
+
+def _texts(values: Iterable[Any]) -> pd.Series:
+    return pd.Series(
+        [None if value is None or value != value else str(value).strip() for value in values],
+        dtype="object",
+    )
 
 
 def read_sales(project_root: Path) -> pd.DataFrame:
@@ -55,7 +65,7 @@ def read_sales(project_root: Path) -> pd.DataFrame:
     ``zona`` y ``mes`` se conservan como ``zona_origen`` y ``mes_origen`` porque
     no siempre coinciden con el mercado ni con la fecha de la venta.
     """
-    with sqlite3.connect(project_root / SALES_DATABASE) as connection:
+    with closing(sqlite3.connect(project_root / SALES_DATABASE)) as connection:
         raw = pd.read_sql_query("SELECT rowid AS fila_origen, * FROM ventas ORDER BY rowid", connection)
 
     return pd.DataFrame(
@@ -73,7 +83,7 @@ def read_sales(project_root: Path) -> pd.DataFrame:
             "descuento": pd.Series([parse_discount(value) for value in raw["descuento"]], dtype="float64"),
             "monto_neto": _numbers(raw["monto_neto"]),
             "anada": _integers(raw["anada"]),
-            "zona_origen": raw["zona"].str.strip(),
+            "zona_origen": _texts(raw["zona"]),
             "mes_origen": _integers(raw["mes"]),
         }
     )
@@ -81,7 +91,7 @@ def read_sales(project_root: Path) -> pd.DataFrame:
 
 def read_dimensions(project_root: Path) -> dict[str, pd.DataFrame]:
     """Lee las tablas de dimensiones de la base comercial sin modificarlas."""
-    with sqlite3.connect(project_root / SALES_DATABASE) as connection:
+    with closing(sqlite3.connect(project_root / SALES_DATABASE)) as connection:
         return {
             f"stg_{table}": pd.read_sql_query(f"SELECT * FROM {table}", connection)
             for table in DIMENSION_TABLES
@@ -100,9 +110,10 @@ def read_costs(project_root: Path) -> pd.DataFrame:
         encoding="cp1252",
         dtype=str,
         keep_default_na=False,
+        skip_blank_lines=False,  # para que fila_origen coincida con la línea del archivo
     )
     raw.insert(0, "fila_origen", raw.index + 2)  # línea del archivo, con el encabezado en la 1
-    raw = raw[raw["producto_id"].str.strip().str.fullmatch(r"\d+")].reset_index(drop=True)
+    raw = raw[raw["producto_id"].str.strip().str.fullmatch(r"\d+", na=False)].reset_index(drop=True)
 
     return pd.DataFrame(
         {
@@ -145,16 +156,29 @@ def read_shipments(project_root: Path) -> pd.DataFrame:
                     "cajas": line.get("cajas"),
                 }
             )
-    raw = pd.DataFrame(rows)
+    raw = pd.DataFrame(
+        rows,
+        columns=[
+            "embarque_orden",
+            "linea_orden",
+            "embarque_id",
+            "fecha_embarque",
+            "incoterm",
+            "puerto_destino",
+            "mercado_id",
+            "venta_id",
+            "cajas",
+        ],
+    )
 
     return pd.DataFrame(
         {
             "embarque_orden": _integers(raw["embarque_orden"]),
             "linea_orden": _integers(raw["linea_orden"]),
-            "embarque_id": raw["embarque_id"].str.strip(),
+            "embarque_id": _texts(raw["embarque_id"]),
             "fecha_embarque": _dates(raw["fecha_embarque"]),
-            "incoterm": raw["incoterm"].str.strip().str.upper(),
-            "puerto_destino": raw["puerto_destino"].str.strip(),
+            "incoterm": _texts(raw["incoterm"]).str.upper(),
+            "puerto_destino": _texts(raw["puerto_destino"]),
             "mercado_id": _integers(raw["mercado_id"]),
             "venta_id": _integers(raw["venta_id"]),
             "cajas": _integers(raw["cajas"]),
@@ -190,14 +214,20 @@ def read_exchange_rate(
         cache = staging / f"tipo_cambio_{year}.json"
         try:
             payload = fetcher(year)
-            cache.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-        except (OSError, ValueError) as error:
+            if not isinstance(payload, dict) or not isinstance(payload.get("serie"), list):
+                raise ValueError(f"Respuesta inesperada de la API de tipo de cambio para {year}.")
+            if not payload["serie"] and cache.is_file():
+                # Una respuesta vacía no debe reemplazar una copia previa con datos.
+                raise ValueError(f"La API no entregó valores de tipo de cambio para {year}.")
+        except (OSError, ValueError, http.client.HTTPException) as error:
             if not cache.is_file():
                 raise RuntimeError(
                     f"No se pudo descargar el tipo de cambio de {year} y no hay una copia previa en {cache}."
                 ) from error
             print(f"Aviso: no se pudo descargar el tipo de cambio de {year}; se usa la copia en {cache.name}.")
             payload = json.loads(cache.read_text(encoding="utf-8"))
+        else:
+            cache.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         # La API entrega la medianoche de Chile en UTC, por lo que el día es el de la marca de tiempo.
         rows.extend((entry["fecha"][:10], entry["valor"]) for entry in payload.get("serie", []))
 

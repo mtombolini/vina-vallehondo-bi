@@ -40,6 +40,9 @@ def test_parse_date(value, expected) -> None:
         ("13.734,00", 13734.0),
         ("9,0", 9.0),
         (125, 125.0),
+        (12.345, 12.345),
+        ("0.125", 0.125),
+        ("inf", None),
         ("NULL", None),
         ("abc", None),
         (None, None),
@@ -49,7 +52,7 @@ def test_parse_number(value, expected) -> None:
     assert parse_number(value) == expected
 
 
-@pytest.mark.parametrize("value, expected", [("49", 49), (49, 49), ("-33", -33), ("9,5", None), (None, None)])
+@pytest.mark.parametrize("value, expected", [("49", 49), (49, 49), ("-33", -33), ("9,5", None), ("1e400", None), (None, None)])
 def test_parse_integer(value, expected) -> None:
     assert parse_integer(value) == expected
 
