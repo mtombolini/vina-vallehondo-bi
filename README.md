@@ -15,6 +15,7 @@ El análisis buscará responder, entre otras, estas preguntas:
 
 ## Stack
 
+- **Cadena de datos:** Python con pandas; salidas en Parquet.
 - **BI y visualización:** Tableau.
 - **Datos de origen:** SQLite, CSV y JSON.
 - **Tipo de cambio:** API de dólar observado de Mindicador (`https://mindicador.cl/api/dolar/2025`).
@@ -35,13 +36,94 @@ El análisis buscará responder, entre otras, estas preguntas:
 - El archivo de costos contiene encabezados repetidos y valores heterogéneos para campos como cepa y estado activo.
 - Existen registros posteriores a 2025. Se conservarán en la capa de preparación, pero el análisis inicial se enfocará en 2025 salvo que se acuerde otra ventana temporal.
 
+## Reproducción
+
+Todo corre desde un clon limpio del repositorio, con un comando para instalar y otro para ejecutar la cadena de datos.
+
+### Requisitos
+
+- Python 3.9 o superior.
+- Conexión a internet en la primera ejecución, para consultar el dólar observado en `mindicador.cl`.
+
+### Instalar
+
+```bash
+git clone https://github.com/mtombolini/vina-vallehondo-bi.git
+cd vina-vallehondo-bi
+bash scripts/setup.sh
+```
+
+El script crea el ambiente virtual `.venv` e instala el paquete con sus dependencias. Demora entre 1 y 3 minutos según la conexión. En Windows, los comandos equivalentes son `python -m venv .venv` y `.venv\Scripts\pip install -e ".[dev]"`, y en los pasos siguientes `.venv\Scripts\python` reemplaza a `.venv/bin/python`.
+
+### Correr la cadena de datos
+
+```bash
+.venv/bin/python -m vina_vallehondo_bi.etl.pipeline
+```
+
+Lee las cuatro fuentes (SQLite, CSV, JSON y API), las tipa en `data/staging/` y las limpia en `data/processed/`. Demora cerca de 30 segundos, casi todo en las tres consultas a la API.
+
+Al terminar se espera ver este resumen:
+
+```text
+stg_ventas: 13968 filas (nulos: moneda_id=695)
+stg_zonas: 5 filas
+stg_mercados: 11 filas
+stg_cepas: 7 filas
+stg_monedas: 2 filas
+stg_vendedores: 5 filas
+stg_clientes: 26 filas
+stg_costos_productos: 81 filas (nulos: costo_caja_clp=1)
+stg_embarques: 10730 filas
+stg_tipo_cambio: 692 filas
+
+ventas: 13830 filas
+mercados: 11 filas
+clientes: 26 filas
+cepas: 7 filas
+monedas: 2 filas
+vendedores: 5 filas
+costos_productos: 96 filas
+embarques: 10715 filas
+tipo_cambio: 651 filas
+Ingesta a staging y limpieza a processed listas.
+```
+
+Las filas de `stg_tipo_cambio` y `tipo_cambio` crecen con cada día hábil que publica la API; el resto de las cifras es fijo. Las reglas de cada capa están en [data/README.md](data/README.md).
+
+La respuesta de la API queda guardada en `data/staging/tipo_cambio_<año>.json`. Si una ejecución posterior no logra conectarse, usa esa copia y lo avisa. Sin conexión y sin copia previa, `--omitir-tipo-cambio` ejecuta la cadena solo con las fuentes locales.
+
+### Reproducir las cifras del informe
+
+Los notebooks usan el mismo código del pipeline y se pueden ejecutar completos desde la terminal:
+
+```bash
+.venv/bin/jupyter nbconvert --to notebook --execute --inplace notebooks/02_hallazgos_mandato.ipynb
+.venv/bin/jupyter nbconvert --to notebook --execute --inplace notebooks/03_modelado_estrella.ipynb
+```
+
+Cada uno demora menos de 10 segundos. También se pueden abrir con `.venv/bin/jupyter lab` y usar *Run All*.
+
+| Notebook | Qué respalda |
+| --- | --- |
+| `02_hallazgos_mandato.ipynb` | Cifras medidas del mandato y de la bitácora de supuestos; termina con una tabla que compara cada cifra del informe con la calculada. |
+| `03_modelado_estrella.ipynb` | Modelo estrella (`fact_venta` y sus dimensiones) con la conversión a pesos; termina con los controles de integridad en `OK`. Requiere el tipo de cambio. |
+
+### Verificar
+
+```bash
+.venv/bin/python -m pytest
+```
+
+Deben pasar los 73 tests en pocos segundos. Uno de ellos ejecuta la ingesta y la limpieza sobre las fuentes reales.
+
 ## Flujo de trabajo
 
 ```text
-Fuentes originales → Notebook de perfilado → ETL versionado → data/published → Tableau
+Fuentes originales → staging (tipado) → processed (limpieza) → Notebooks de análisis y modelo
 ```
 
-Los notebooks se usan para exploración y validación. Las transformaciones que alimenten el tablero deben implementarse en el ETL para que sean reproducibles. Revisa [CONTRIBUTING.md](CONTRIBUTING.md) para el flujo de ramas, workspaces y PRs.
+El ETL versionado en `src/vina_vallehondo_bi/etl/` es la única fuente de las transformaciones; los notebooks lo importan para analizar y modelar. Revisa [CONTRIBUTING.md](CONTRIBUTING.md) para el flujo de ramas, workspaces y PRs.
 
 ## Estructura actual
 
@@ -51,12 +133,13 @@ Los notebooks se usan para exploración y validación. Las transformaciones que 
 ├── README_caso.md
 ├── CONTRIBUTING.md
 ├── config/
-├── data/
-├── notebooks/
+├── data/                  # capas staging, processed y published (salidas no versionadas)
+├── notebooks/             # perfilado, hallazgos del mandato y modelo estrella
 ├── origen_costos_productos.csv
 ├── origen_embarques.json
-├── src/
+├── origen_vina.sqlite
+├── scripts/setup.sh
+├── src/vina_vallehondo_bi/etl/   # parsers, staging, processed y pipeline
 ├── tableau/
-├── tests/
-└── origen_vina.sqlite
+└── tests/
 ```
