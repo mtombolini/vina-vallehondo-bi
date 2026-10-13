@@ -3,7 +3,7 @@
 | Capa | Propósito | Versionada |
 | --- | --- | --- |
 | Fuentes originales en la raíz | Entrega original, sin modificación | Sí |
-| `staging/` | Datos leídos y normalizados de forma mínima | No |
+| `staging/` | Datos leídos y normalizados de forma mínima | Parcialmente |
 | `processed/` | Datos limpios y con reglas de negocio aplicadas | No |
 | `published/` | Tablas analíticas para Tableau | No |
 
@@ -21,7 +21,7 @@ Las salidas generadas se excluyen de Git. El ETL debe poder recrearlas desde las
 | `stg_embarques` | `origen_embarques.json` | Línea de embarque (`embarque_orden`, `linea_orden`) |
 | `stg_tipo_cambio` | API Mindicador | Día hábil, años 2024 a 2026 |
 
-Staging solo tipa fechas, números y booleanos; lo que no se puede interpretar queda nulo. No elimina duplicados, no imputa valores ni corrige inconsistencias: esas reglas pertenecen a `processed/`. `fila_origen` permite volver al registro de la fuente.
+Staging solo tipa fechas, números y booleanos; lo que no se puede interpretar queda nulo. No elimina duplicados, no imputa valores ni corrige inconsistencias: esas reglas pertenecen a `processed/`. `fila_origen` permite volver al registro de la fuente. Las cachés `tipo_cambio_2024.json`, `tipo_cambio_2025.json` y `tipo_cambio_2026.json` son la excepción: se versionan porque permiten reproducir la ingesta sin depender de que la API esté disponible.
 
 ## Tablas de processed
 

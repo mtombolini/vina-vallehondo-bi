@@ -8,6 +8,10 @@ __pycache__/
 
 data/staging/*
 !data/staging/.gitkeep
+# Required exchange-rate inputs for reproducible notebook/ETL execution.
+!data/staging/tipo_cambio_2024.json
+!data/staging/tipo_cambio_2025.json
+!data/staging/tipo_cambio_2026.json
 data/processed/*
 !data/processed/.gitkeep
 data/published/*
