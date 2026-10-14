@@ -149,13 +149,19 @@ def clean_exchange_rate(rates: pd.DataFrame) -> pd.DataFrame:
     """Completa la serie a días corridos desde ``ANALYSIS_YEAR``.
 
     Los días sin publicación (fines de semana y feriados) usan el último valor
-    publicado, que es el dólar observado vigente ese día.
+    publicado, que es el dólar observado vigente ese día. El calendario llega
+    al menos al 31 de diciembre de ``ANALYSIS_YEAR``: ese día es feriado
+    bancario y, si la serie del año siguiente no está disponible, las ventas
+    facturadas ese día quedarían sin tipo de cambio.
     """
     start = pd.Timestamp(ANALYSIS_YEAR, 1, 1)
+    end_of_year = pd.Timestamp(ANALYSIS_YEAR, 12, 31)
     if rates.empty:
         return rates.assign(publicado=pd.Series(dtype=bool))
     # El calendario parte a más tardar el 1 de enero, aunque la serie descargada comience después.
-    calendar = pd.DataFrame({"fecha": pd.date_range(min(rates["fecha"].min(), start), rates["fecha"].max(), freq="D")})
+    calendar = pd.DataFrame(
+        {"fecha": pd.date_range(min(rates["fecha"].min(), start), max(rates["fecha"].max(), end_of_year), freq="D")}
+    )
     clean = calendar.merge(rates, on="fecha", how="left")
     clean["publicado"] = clean["dolar_observado"].notna()
     clean["dolar_observado"] = clean["dolar_observado"].ffill()

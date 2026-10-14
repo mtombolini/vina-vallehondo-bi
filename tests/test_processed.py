@@ -130,11 +130,21 @@ def test_clean_exchange_rate_fills_days_without_publication() -> None:
         {"fecha": pd.to_datetime(["2024-12-30", "2025-01-02", "2025-01-03"]), "dolar_observado": [992.12, 996.46, 999.84]}
     )
 
-    clean = clean_exchange_rate(rates)
+    clean = clean_exchange_rate(rates).head(3)
 
     assert clean["fecha"].tolist() == [pd.Timestamp(day) for day in ("2025-01-01", "2025-01-02", "2025-01-03")]
     assert clean["dolar_observado"].tolist() == [992.12, 996.46, 999.84]
     assert clean["publicado"].tolist() == [False, True, True]
+
+
+def test_clean_exchange_rate_covers_december_31_without_next_year() -> None:
+    rates = pd.DataFrame({"fecha": pd.to_datetime(["2025-12-29", "2025-12-30"]), "dolar_observado": [940.0, 935.0]})
+
+    clean = clean_exchange_rate(rates).set_index("fecha")
+
+    assert clean.index.max() == pd.Timestamp("2025-12-31")
+    assert clean.loc["2025-12-31", "dolar_observado"] == 935.0
+    assert not clean.loc["2025-12-31", "publicado"]
 
 
 def test_original_sources_are_consistent_after_cleaning(tmp_path: Path) -> None:
@@ -186,7 +196,7 @@ def test_clean_sales_tolerates_values_staging_could_not_parse() -> None:
 def test_clean_exchange_rate_keeps_january_first_without_previous_year() -> None:
     rates = pd.DataFrame({"fecha": pd.to_datetime(["2025-01-02"]), "dolar_observado": [996.46]})
 
-    clean = clean_exchange_rate(rates)
+    clean = clean_exchange_rate(rates).head(2)
 
     assert clean["fecha"].tolist() == [pd.Timestamp("2025-01-01"), pd.Timestamp("2025-01-02")]
     assert pd.isna(clean.loc[0, "dolar_observado"])
