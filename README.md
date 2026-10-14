@@ -100,14 +100,18 @@ Los notebooks usan el mismo código del pipeline y se pueden ejecutar completos 
 ```bash
 .venv/bin/jupyter nbconvert --to notebook --execute --inplace notebooks/02_hallazgos_mandato.ipynb
 .venv/bin/jupyter nbconvert --to notebook --execute --inplace notebooks/03_modelado_estrella.ipynb
+.venv/bin/jupyter nbconvert --to notebook --execute --inplace notebooks/04_metrica_sensibilidad.ipynb
+.venv/bin/jupyter nbconvert --to notebook --execute --inplace notebooks/05_evidencia_recomendacion.ipynb
 ```
 
-Cada uno demora menos de 10 segundos. También se pueden abrir con `.venv/bin/jupyter lab` y usar *Run All*.
+Cada uno demora menos de 30 segundos. El 05 ejecuta internamente el 04, así que sus cifras son siempre las de la ficha de la métrica. También se pueden abrir con `.venv/bin/jupyter lab` y usar *Run All*.
 
 | Notebook | Qué respalda |
 | --- | --- |
 | `02_hallazgos_mandato.ipynb` | Cifras medidas del mandato y de la bitácora de supuestos; termina con una tabla que compara cada cifra del informe con la calculada. |
 | `03_modelado_estrella.ipynb` | Modelo estrella (`fact_venta` y sus dimensiones) con la conversión a pesos; termina con los controles de integridad en `OK`. Requiere el tipo de cambio. |
+| `04_metrica_sensibilidad.ipynb` | Ficha de la métrica (Sección D): margen bruto por litro por mercado con el dólar a fecha de factura (A) y a fecha de embarque (B), sensibilidad A vs B y cruce crecimiento × margen. |
+| `05_evidencia_recomendacion.ipynb` | Sección E: visualizaciones, caso de negocio en pesos, recomendación y cobertura de datos, todo dentro del cuaderno. |
 
 ### Verificar
 
@@ -134,7 +138,7 @@ El ETL versionado en `src/vina_vallehondo_bi/etl/` es la única fuente de las tr
 ├── CONTRIBUTING.md
 ├── config/
 ├── data/                  # capas staging, processed y published (salidas no versionadas)
-├── notebooks/             # perfilado, hallazgos del mandato y modelo estrella
+├── notebooks/             # perfilado, hallazgos, modelo estrella, métrica y evidencia
 ├── origen_costos_productos.csv
 ├── origen_embarques.json
 ├── origen_vina.sqlite
