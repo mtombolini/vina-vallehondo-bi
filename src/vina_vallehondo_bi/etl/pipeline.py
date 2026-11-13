@@ -1,8 +1,7 @@
 """Punto de entrada del ETL.
 
 Valida las fuentes, prepara las capas de salida y ejecuta la ingesta a
-staging y la limpieza a processed. El modelo publicado se agregará por etapas,
-una vez validado en los notebooks.
+staging, la limpieza a processed y la publicación de las métricas de margen.
 """
 
 from __future__ import annotations
@@ -11,6 +10,7 @@ import argparse
 from pathlib import Path
 from typing import Iterable
 
+from vina_vallehondo_bi.etl.margins import publish_margin_tables
 from vina_vallehondo_bi.etl.processed import run_processing
 from vina_vallehondo_bi.etl.staging import EXCHANGE_RATE_YEARS, run_ingestion, summarize
 
@@ -78,7 +78,12 @@ def main() -> int:
     )
     print(summarize(tables))
     print()
-    print(summarize(run_processing(project_root, tables)))
+    processed = run_processing(project_root, tables)
+    print(summarize(processed))
+    if not args.omitir_tipo_cambio:
+        print()
+        print(summarize(publish_margin_tables(project_root, tables, processed)))
+        print("Métricas de margen publicadas en data/published.")
     print("Ingesta a staging y limpieza a processed listas.")
     return 0
 

@@ -119,12 +119,13 @@ Cada uno demora menos de 30 segundos. El 05 ejecuta internamente el 04, así que
 .venv/bin/python -m pytest
 ```
 
-Deben pasar los 73 tests en pocos segundos. Uno de ellos ejecuta la ingesta y la limpieza sobre las fuentes reales.
+Deben pasar los 77 tests en pocos segundos. Incluyen la ingesta, la limpieza y la conciliación de las métricas sobre las fuentes reales.
 
 ## Flujo de trabajo
 
 ```text
-Fuentes originales → staging (tipado) → processed (limpieza) → Notebooks de análisis y modelo
+Fuentes originales → staging (tipado) → processed (limpieza) → published (métricas)
+                                             ↳ Notebooks de análisis y modelo
 ```
 
 El ETL versionado en `src/vina_vallehondo_bi/etl/` es la única fuente de las transformaciones; los notebooks lo importan para analizar y modelar. Revisa [CONTRIBUTING.md](CONTRIBUTING.md) para el flujo de ramas, workspaces y PRs.
@@ -147,3 +148,21 @@ El ETL versionado en `src/vina_vallehondo_bi/etl/` es la única fuente de las tr
 ├── tableau/
 └── tests/
 ```
+
+### Analítica E2 para el informe y el tablero
+
+El mismo comando del pipeline publica los CSV de margen en `data/published/` cuando carga el tipo de cambio. La opción `--omitir-tipo-cambio` mantiene la ejecución de preparación sin publicar métricas de moneda. La implementación está en `etl/margins.py`.
+
+| Salida | Contenido |
+| --- | --- |
+| `margen_por_mercado.csv` | Diez mercados y total por criterio, moneda, fecha y base. Incluye litros y cajas por semestre, crecimiento, margen, mediana, ranking, clase, descuento y cobertura. |
+| `sensibilidad_reglas_margen.csv` | E1, solo monto facturado, solo sin reversa de merma y ambas reglas. CLP, factura y base completa. |
+| `caso_descuento_brasil.csv` | Brecha frente a la mediana, escenarios de descuento implícito y comercial, equilibrio de volumen y valor de un punto de descuento. |
+| `escenarios_mezcla.csv` | Valor en CLP de reasignar un punto porcentual de litros entre niveles de vino, para Brasil y China. |
+| `serie_mensual_mercado.csv` | Volumen y margen de producto por mes de factura para la vista principal. |
+| `cobertura_margen.csv` | Universo y conteos de auditoría. |
+| `descuadres_monto_exportacion.csv` | Identificadores y montos de las ventas de exportación recalculadas en la E1 para conciliación. |
+
+La vista principal usa `reglas_finanzas / CLP / factura / disponible`. Para medir el efecto de fecha, comparar `factura` y `embarque` con `base=comparable`. La cobertura se calcula sobre los litros netos del mercado o del total, según la fila. El margen en USD convierte el costo de CLP a USD por línea con el tipo de cambio seleccionado. El crecimiento siempre usa los dos semestres completos según factura.
+
+El escenario del descuento implícito conserva la comparación de la E1. Para mostrar la tasa comercial, usar `descuento_comercial_pct`. El margen publicado es de producto, antes de flete, seguro y comisiones, y queda sujeto a conciliación de notas de crédito. El material para el Word y las respuestas de la prueba de uso están en [Analítica de Vicente](docs/analitica-e2-vicente.md).
