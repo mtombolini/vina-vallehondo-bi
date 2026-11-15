@@ -1,0 +1,3 @@
+# Dependencias del prototipo para Streamlit Community Cloud.
+# Instala el paquete de la cadena (con sus dependencias) y las del tablero.
+.[app]

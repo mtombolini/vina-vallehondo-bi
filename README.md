@@ -93,6 +93,17 @@ Las filas de `stg_tipo_cambio` y `tipo_cambio` crecen con cada día hábil que p
 
 La respuesta de la API queda guardada en `data/staging/tipo_cambio_<año>.json`. Si una ejecución posterior no logra conectarse, usa esa copia y lo avisa. Sin conexión y sin copia previa, `--omitir-tipo-cambio` ejecuta la cadena solo con las fuentes locales.
 
+### Abrir el prototipo
+
+```bash
+.venv/bin/pip install -e ".[app]"
+.venv/bin/streamlit run app.py
+```
+
+Se abre en el navegador en `http://localhost:8501`. El tablero lee solo los CSV de `data/published/`; si la carpeta está vacía, corre la cadena al iniciar, y el botón «Volver a correr la cadena», al final de la pantalla, la ejecuta de nuevo y recarga las cifras. En Windows: `.venv\Scripts\streamlit run app.py`.
+
+Versión publicada: [enlace de Streamlit Community Cloud por agregar].
+
 ### Reproducir las cifras del informe
 
 Los notebooks usan el mismo código del pipeline y se pueden ejecutar completos desde la terminal:

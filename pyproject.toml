@@ -21,6 +21,11 @@ dev = [
   "pytest>=8,<9",
 ]
 
+app = [
+  "streamlit>=1.50,<2",
+  "altair>=5,<7",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
