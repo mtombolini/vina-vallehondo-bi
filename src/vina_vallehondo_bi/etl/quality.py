@@ -87,12 +87,13 @@ def exchange_checks(staging, processed) -> list[dict]:
         f"Copia de respaldo para {', '.join(map(str, fallback))}"
         if fallback else "Descargado de la API"
     )
+    last_text = f"último dato publicado el {last:%d-%m-%Y}" if pd.notna(last) else "sin datos"
     return [
         _check(
             "API mindicador.cl: origen", "staging",
             "El dólar observado se descargó de la API y no de la copia de respaldo.",
             WARN, not fallback,
-            f"{origin}; último dato publicado el {last:%d-%m-%Y}.",
+            f"{origin}; {last_text}.",
         ),
         _check(
             "API mindicador.cl: rango", "staging",
@@ -194,6 +195,15 @@ def metric_checks(model, metrics) -> list[dict]:
             .replace(",", "X").replace(".", ",").replace("X", "."),
         ),
     ]
+
+
+def build_failure(error: Exception) -> dict:
+    """Prueba que registra un error al armar el modelo o la métrica."""
+    return _check(
+        "Construcción del modelo y la métrica", "published",
+        "El modelo y la métrica se pueden calcular con los datos de esta corrida.",
+        BLOCK, False, f"{type(error).__name__}: {error}",
+    )
 
 
 def run_checks(staging, processed, model=None, metrics=None) -> pd.DataFrame:

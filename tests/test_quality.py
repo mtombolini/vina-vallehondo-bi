@@ -95,3 +95,34 @@ def test_pipeline_publishes_only_when_blocking_checks_pass(tmp_path, monkeypatch
     assert pipeline.main() == 1
     assert (published / "margen_por_mercado.csv").read_bytes() == b"corrida anterior"
     assert "falla" in (published / "calidad_ultima_corrida.csv").read_text()
+
+
+def test_empty_exchange_rate_blocks_instead_of_crashing(layers):
+    staging, processed, _, _ = layers
+    empty = {**staging, "stg_tipo_cambio": staging["stg_tipo_cambio"].iloc[0:0]}
+    checks = run_checks(empty, processed)
+    assert blocking_failures(checks)["prueba"].tolist() == ["API mindicador.cl: rango"]
+    assert checks.loc[checks["prueba"].eq("API mindicador.cl: origen"), "detalle"].iloc[0].endswith("sin datos.")
+
+
+def test_pipeline_reports_build_errors_as_blocking_checks(tmp_path, monkeypatch):
+    project = project_with_sources(tmp_path)
+    ingest = pipeline.run_ingestion
+    monkeypatch.setattr(pipeline, "run_ingestion", lambda root, **kw: ingest(root, fetcher=cached_exchange_rate, **kw))
+    monkeypatch.setattr("sys.argv", ["pipeline", "--project-root", str(project)])
+
+    def broken(*args):
+        raise ValueError("Hay ventas sin cajas o equivalencia a litros.")
+
+    monkeypatch.setattr(pipeline, "build_model", broken)
+    assert pipeline.main() == 1
+    published = project / "data/published"
+    report = (published / "calidad_ultima_corrida.csv").read_text()
+    assert "Construcción del modelo y la métrica" in report and "sin cajas" in report
+    assert not (published / "fact_venta.parquet").exists() and not (published / "corrida.json").exists()
+
+    # Sin tipo de cambio no se escribe nada en published.
+    (published / "calidad_ultima_corrida.csv").unlink()
+    monkeypatch.setattr("sys.argv", ["pipeline", "--project-root", str(project), "--omitir-tipo-cambio"])
+    assert pipeline.main() == 0
+    assert not any(published.iterdir())

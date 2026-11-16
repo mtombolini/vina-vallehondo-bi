@@ -108,11 +108,11 @@ Ingesta a staging y limpieza a processed listas.
 
 Las filas de `stg_tipo_cambio` y `tipo_cambio` crecen con cada día hábil que publica la API; el resto de las cifras es fijo. Las reglas de cada capa están en [data/README.md](data/README.md).
 
-La respuesta de la API queda guardada en `data/staging/tipo_cambio_<año>.json`. Si una ejecución posterior no logra conectarse, usa esa copia, lo avisa en la salida y lo registra en `data/published/corrida.json`; el prototipo muestra entonces un aviso de tipo de cambio de respaldo con la fecha del último dato. Sin conexión y sin copia previa, la cadena se detiene. `--omitir-tipo-cambio` ejecuta solo con las fuentes locales: prueba las fuentes, pero no arma el modelo ni publica métricas.
+La respuesta de la API queda guardada en `data/staging/tipo_cambio_<año>.json`. Si una ejecución posterior no logra conectarse, usa esa copia, lo avisa en la salida y lo registra en `data/published/corrida.json`; el prototipo muestra entonces un aviso de tipo de cambio de respaldo con la fecha del último dato. Sin conexión y sin copia previa, la cadena se detiene. `--omitir-tipo-cambio` ejecuta solo con las fuentes locales: prueba las fuentes, pero no arma el modelo ni escribe en `data/published/`.
 
 #### Pruebas de calidad en cada carga
 
-Antes de publicar, la cadena corre 13 pruebas (`etl/quality.py`): una o más por fuente, las del modelo (clave única del hecho, claves sin huérfanos, rangos, fechas dentro de 2025, tipo de cambio de cada venta en USD) y las que protegen la métrica (cobertura y cuadratura entre `fact_venta` y el margen publicado). Las que bloquean impiden publicar: `data/published/` conserva la corrida anterior y el comando termina con código 1. Las que avisan se informan y la carga sigue. El resultado de cada prueba queda en `data/published/calidad_ultima_corrida.csv`.
+Antes de publicar, la cadena corre 13 pruebas (`etl/quality.py`): una o más por fuente, las del modelo (clave única del hecho, claves sin huérfanos, rangos, fechas dentro de 2025, tipo de cambio de cada venta en USD) y las que protegen la métrica (cobertura y cuadratura entre `fact_venta` y el margen publicado). Las que bloquean impiden publicar: `data/published/` conserva la corrida anterior y el comando termina con código 1. Las que avisan se informan y la carga sigue. Si un dato impide armar el modelo o la métrica, la cadena lo registra como una prueba que bloquea en vez de terminar con una traza. El resultado de cada prueba queda en `data/published/calidad_ultima_corrida.csv`.
 
 ### Abrir el prototipo
 
@@ -151,7 +151,7 @@ Cada uno demora menos de 30 segundos. El 05 ejecuta internamente el 04, así que
 .venv/bin/python -m pytest
 ```
 
-Deben pasar los 83 tests en menos de un minuto. Incluyen la ingesta, la limpieza, el modelo, las pruebas de calidad y la conciliación de las métricas sobre las fuentes reales.
+Deben pasar los 85 tests en menos de un minuto. Incluyen la ingesta, la limpieza, el modelo, las pruebas de calidad y la conciliación de las métricas sobre las fuentes reales.
 
 ## Flujo de trabajo
 

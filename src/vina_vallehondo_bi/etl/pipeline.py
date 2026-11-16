@@ -20,7 +20,7 @@ import pandas as pd
 from vina_vallehondo_bi.etl.margins import build_margin_tables, write_margin_tables
 from vina_vallehondo_bi.etl.model import build_model, publish_model
 from vina_vallehondo_bi.etl.processed import run_processing
-from vina_vallehondo_bi.etl.quality import blocking_failures, run_checks, summarize_checks
+from vina_vallehondo_bi.etl.quality import blocking_failures, build_failure, run_checks, summarize_checks
 from vina_vallehondo_bi.etl.staging import EXCHANGE_RATE_YEARS, run_ingestion, summarize
 
 
@@ -111,13 +111,22 @@ def main() -> int:
     processed = run_processing(project_root, staging)
     print(summarize(processed))
 
-    # El modelo y la métrica convierten a pesos: sin tipo de cambio solo se prueban las fuentes.
+    # El modelo y la métrica convierten a pesos: sin tipo de cambio solo se prueban las fuentes
+    # y no se toca data/published.
     model = metrics = None
-    if not args.omitir_tipo_cambio:
-        model = build_model(staging, processed)
-        metrics = build_margin_tables(staging, processed)
-    checks = run_checks(staging, processed, model, metrics)
-    checks.to_csv(project_root / "data/published/calidad_ultima_corrida.csv", index=False)
+    if args.omitir_tipo_cambio:
+        checks = run_checks(staging, processed)
+    else:
+        try:
+            model = build_model(staging, processed)
+            metrics = build_margin_tables(staging, processed)
+            checks = run_checks(staging, processed, model, metrics)
+        except Exception as error:
+            # Un dato que impide calcular se informa como prueba bloqueante, no como traza.
+            model = metrics = None
+            checks = run_checks(staging, processed)
+            checks.loc[len(checks)] = build_failure(error)
+        checks.to_csv(project_root / "data/published/calidad_ultima_corrida.csv", index=False)
     print()
     print(summarize_checks(checks))
 

@@ -95,6 +95,7 @@ corrida = json.loads(ruta_corrida.read_text(encoding="utf-8")) if ruta_corrida.e
 if corrida:
     ultima_corrida = datetime.fromisoformat(corrida["fecha_corrida"]).astimezone(ZoneInfo("America/Santiago"))
     dolar_hasta = datetime.fromisoformat(corrida["tipo_cambio"]["ultimo_dato"])
+    anios_respaldo = ", ".join(map(str, corrida["tipo_cambio"]["anios_respaldo"]))
     dolar_respaldo = corrida["tipo_cambio"]["fuente"] == "respaldo"
 
 # ---------------------------------------------------------------- 1. título y filtros
@@ -108,8 +109,9 @@ st.caption(
 
 if corrida and dolar_respaldo:
     st.warning(
-        "**Tipo de cambio de respaldo.** La API del dólar observado no respondió en la última corrida; "
-        f"las cifras usan la copia guardada, con datos hasta el {dolar_hasta:%d-%m-%Y}.",
+        f"**Tipo de cambio de respaldo.** La API del dólar observado no respondió para {anios_respaldo} "
+        "en la última corrida y se usó la copia guardada en el repositorio. "
+        f"Último dato disponible: {dolar_hasta:%d-%m-%Y}.",
         icon="⚠️",
     )
 
@@ -364,8 +366,9 @@ st.caption(
     f"**Dueño del dato:** {DUENO_DATO} · **Definición certificada:** {CERTIFICACION} · "
     f"**Litros por caja:** {num(litros_caja, 1)} L (12 × 750 ml y 6 × 1,5 L) · "
     + (
-        f"**Tipo de cambio:** dólar observado {'de la copia de respaldo' if dolar_respaldo else 'de la API'}, "
-        f"datos hasta el {dolar_hasta:%d-%m-%Y} · **Pruebas de calidad:** {corrida['pruebas']['en_verde']} de "
+        f"**Tipo de cambio:** dólar observado de la API"
+        f"{f' (copia de respaldo para {anios_respaldo})' if dolar_respaldo else ''}, "
+        f"último dato {dolar_hasta:%d-%m-%Y} · **Pruebas de calidad:** {corrida['pruebas']['en_verde']} de "
         f"{corrida['pruebas']['total']} en verde ({corrida['pruebas']['avisos']} avisos) · "
         if corrida else ""
     )
