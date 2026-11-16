@@ -102,7 +102,7 @@ La respuesta de la API queda guardada en `data/staging/tipo_cambio_<año>.json`.
 
 Se abre en el navegador en `http://localhost:8501`. El tablero lee solo los CSV de `data/published/`; si la carpeta está vacía, corre la cadena al iniciar, y el botón «Volver a correr la cadena», al final de la pantalla, la ejecuta de nuevo y recarga las cifras. En Windows: `.venv\Scripts\streamlit run app.py`.
 
-Versión publicada: [enlace de Streamlit Community Cloud por agregar].
+Versión publicada: <https://vina-vallehondo-g7.streamlit.app/>. Abre sin instalar nada; si Streamlit la dejó en reposo por inactividad, el botón para reactivarla la carga en unos segundos.
 
 ### Reproducir las cifras del informe
 

@@ -1,0 +1,4 @@
+# Los colores del gráfico están pensados para fondo claro; con el tema oscuro
+# del navegador, la columna de litros y la etiqueta de la mediana no se leen.
+[theme]
+base = "light"
