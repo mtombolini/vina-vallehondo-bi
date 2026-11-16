@@ -126,3 +126,8 @@ def test_pipeline_reports_build_errors_as_blocking_checks(tmp_path, monkeypatch)
     monkeypatch.setattr("sys.argv", ["pipeline", "--project-root", str(project), "--omitir-tipo-cambio"])
     assert pipeline.main() == 0
     assert not any(published.iterdir())
+
+
+def test_check_details_use_chilean_number_format(layers):
+    detail = run_checks(*layers).set_index("prueba").loc["Métrica cuadra con el modelo", "detalle"]
+    assert detail == "fact_venta 2.210,64 y métrica 2.210,64 CLP/L; diferencia 0,0000."
