@@ -12,6 +12,7 @@ donde las capas no se versionan), la app corre la cadena al iniciar.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -88,6 +89,13 @@ mezcla = cargar("escenarios_mezcla.csv")
 ultima_corrida = datetime.fromtimestamp(
     (PUBLISHED / "margen_por_mercado.csv").stat().st_mtime, ZoneInfo("America/Santiago")
 )
+# La cadena deja en corrida.json qué tipo de cambio usó y cómo salieron las pruebas.
+ruta_corrida = PUBLISHED / "corrida.json"
+corrida = json.loads(ruta_corrida.read_text(encoding="utf-8")) if ruta_corrida.exists() else None
+if corrida:
+    ultima_corrida = datetime.fromisoformat(corrida["fecha_corrida"]).astimezone(ZoneInfo("America/Santiago"))
+    dolar_hasta = datetime.fromisoformat(corrida["tipo_cambio"]["ultimo_dato"])
+    dolar_respaldo = corrida["tipo_cambio"]["fuente"] == "respaldo"
 
 # ---------------------------------------------------------------- 1. título y filtros
 st.title("¿Qué mercados de exportación crecieron en volumen y cuáles crecieron dejando poco margen?")
@@ -97,6 +105,13 @@ st.caption(
     "**Para quién:** gerente comercial y encargados de mercado, mensual tras el cierre · "
     "gerencia general y Finanzas, trimestral y antes de cada renovación de condiciones comerciales"
 )
+
+if corrida and dolar_respaldo:
+    st.warning(
+        "**Tipo de cambio de respaldo.** La API del dólar observado no respondió en la última corrida; "
+        f"las cifras usan la copia guardada, con datos hasta el {dolar_hasta:%d-%m-%Y}.",
+        icon="⚠️",
+    )
 
 f1, f2, f3, f4, f5 = st.columns([1, 1.3, 1.1, 1.1, 1.2])
 moneda = f1.radio("Moneda", ["CLP", "USD"], horizontal=True)
@@ -167,15 +182,17 @@ k3.metric(
 fila_caso = caso[caso["criterio"] == criterio].iloc[0]
 k4.metric(
     f"Costo del descuento extra de {FOCO}",
-    f"{num(fila_caso['descuento_extra_clp'] / 1e6, 2)} MM CLP",
+    f"{num(fila_caso['escenario_descuento_comercial_clp'] / 1e6, 2)} MM CLP",
     delta=f"Cada punto de descuento: {num(fila_caso['un_punto_descuento_clp'] / 1e6, 2)} MM CLP",
     delta_color="off",
     delta_arrow="off",
     help=(
-        f"Igualar el descuento implícito de {FOCO} al del resto, a volumen fijo: "
-        f"{num(fila_caso['proporcion_brecha_pct'], 1)} % de la brecha frente a la mediana. "
-        f"El margen se iguala si {FOCO} pierde {num(fila_caso['perdida_volumen_equilibrio_pct'], 1)} % "
-        "del volumen. En CLP con dólar de factura: no cambia con los filtros de moneda y fecha."
+        f"Igualar el descuento comercial de {FOCO} ({num(fila_caso['descuento_comercial_brasil_pct'], 2)} %) "
+        f"al ponderado del resto ({num(fila_caso['descuento_comercial_resto_pct'], 2)} %), a volumen fijo: "
+        f"{num(fila_caso['escenario_descuento_comercial_clp'] / fila_caso['brecha_mediana_clp'] * 100, 1)} % "
+        f"de la brecha frente a la mediana. El margen se iguala si {FOCO} pierde "
+        f"{num(fila_caso['perdida_volumen_equilibrio_comercial_pct'], 2)} % del volumen. "
+        "En CLP con dólar de factura: no cambia con los filtros de moneda y fecha."
     ),
 )
 st.info(
@@ -346,7 +363,13 @@ st.caption(
     f"archivo `data/published/margen_por_mercado.csv` · **Última corrida:** {ultima_corrida:%d-%m-%Y %H:%M} · "
     f"**Dueño del dato:** {DUENO_DATO} · **Definición certificada:** {CERTIFICACION} · "
     f"**Litros por caja:** {num(litros_caja, 1)} L (12 × 750 ml y 6 × 1,5 L) · "
-    f"**Definición vigente:** {ETIQUETA_CRITERIO[criterio]}, {moneda}, dólar de {fecha}, "
+    + (
+        f"**Tipo de cambio:** dólar observado {'de la copia de respaldo' if dolar_respaldo else 'de la API'}, "
+        f"datos hasta el {dolar_hasta:%d-%m-%Y} · **Pruebas de calidad:** {corrida['pruebas']['en_verde']} de "
+        f"{corrida['pruebas']['total']} en verde ({corrida['pruebas']['avisos']} avisos) · "
+        if corrida else ""
+    )
+    + f"**Definición vigente:** {ETIQUETA_CRITERIO[criterio]}, {moneda}, dólar de {fecha}, "
     f"{'mismas ventas' if base == 'comparable' else 'todas las ventas'}."
 )
 
