@@ -278,10 +278,14 @@ def build_margin_tables(staging, processed):
     }
 
 
-def publish_margin_tables(project_root: Path, staging, processed):
-    tables = build_margin_tables(staging, processed)
+def write_margin_tables(project_root: Path, tables) -> None:
     destination = project_root / "data/published"
     destination.mkdir(parents=True, exist_ok=True)
     for name, table in tables.items():
         table.to_csv(destination / f"{name}.csv", index=False)
+
+
+def publish_margin_tables(project_root: Path, staging, processed):
+    tables = build_margin_tables(staging, processed)
+    write_margin_tables(project_root, tables)
     return tables

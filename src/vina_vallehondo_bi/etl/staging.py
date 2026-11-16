@@ -204,12 +204,14 @@ def read_exchange_rate(
     """Obtiene el dólar observado diario de los años indicados.
 
     Guarda la respuesta de la API en staging y la reutiliza si una ejecución
-    posterior no logra conectarse. La serie solo trae días hábiles.
+    posterior no logra conectarse. La serie solo trae días hábiles. Los años
+    leídos desde la copia quedan en ``attrs["anios_respaldo"]``.
     """
     staging = project_root / STAGING_DIRECTORY
     staging.mkdir(parents=True, exist_ok=True)
 
     rows = []
+    fallback_years = []
     for year in years:
         cache = staging / f"tipo_cambio_{year}.json"
         try:
@@ -225,6 +227,7 @@ def read_exchange_rate(
                     f"No se pudo descargar el tipo de cambio de {year} y no hay una copia previa en {cache}."
                 ) from error
             print(f"Aviso: no se pudo descargar el tipo de cambio de {year}; se usa la copia en {cache.name}.")
+            fallback_years.append(year)
             payload = json.loads(cache.read_text(encoding="utf-8"))
         else:
             cache.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
@@ -234,7 +237,9 @@ def read_exchange_rate(
     frame = pd.DataFrame(rows, columns=["fecha", "dolar_observado"])
     frame["fecha"] = pd.to_datetime(frame["fecha"])
     frame["dolar_observado"] = frame["dolar_observado"].astype("float64")
-    return frame.drop_duplicates("fecha").sort_values("fecha").reset_index(drop=True)
+    frame = frame.drop_duplicates("fecha").sort_values("fecha").reset_index(drop=True)
+    frame.attrs["anios_respaldo"] = fallback_years
+    return frame
 
 
 def run_ingestion(

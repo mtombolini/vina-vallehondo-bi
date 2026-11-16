@@ -5,7 +5,7 @@
 | Fuentes originales en la raíz | Entrega original, sin modificación | Sí |
 | `staging/` | Datos leídos y normalizados de forma mínima | Parcialmente |
 | `processed/` | Datos limpios y con reglas de negocio aplicadas | No |
-| `published/` | Tablas analíticas para Tableau | No |
+| `published/` | Modelo estrella, métricas y resultado de las pruebas que leen el informe y el prototipo | No |
 
 Las salidas generadas se excluyen de Git. El ETL debe poder recrearlas desde las fuentes originales y la configuración versionada.
 
@@ -40,3 +40,7 @@ El mismo comando limpia staging y escribe en `processed/` las tablas `ventas`, `
 | `costos_productos` | Cepa según el maestro de cepas; costos nulos y añadas faltantes se completan con el costo del tier y la añada | `costo_imputado` |
 | `embarques` | Se descartan líneas sin venta; la fecha es creíble solo en la primera línea, con el mismo mercado de la venta y entre 0 y 60 días después | `fecha_embarque_confiable` |
 | `tipo_cambio` | Serie en días corridos desde 2025; los días sin publicación usan el último valor publicado | `publicado` |
+
+## Tablas de published
+
+El mismo comando arma el modelo estrella (`fact_venta`, `dim_tiempo`, `dim_mercado`, `dim_cliente` y `dim_producto`, en Parquet) y las tablas de la métrica (CSV), corre las pruebas de calidad y solo entonces publica. `fact_venta` tiene una fila por `venta_id` y usa las reglas de Finanzas de la E2: monto neto registrado, dividido por 10 en las ventas con cajas ×10, y mermas que restan litros e ingreso sin revertir costo. Si una prueba que bloquea falla, `published/` conserva la corrida anterior; `calidad_ultima_corrida.csv` registra la última ejecución completa, aunque haya quedado bloqueada.
