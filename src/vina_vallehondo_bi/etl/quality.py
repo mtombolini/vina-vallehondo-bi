@@ -25,6 +25,11 @@ def _n(value: float) -> str:
     return f"{value:,.0f}".replace(",", ".")
 
 
+def _dec(value: float, places: int = 2) -> str:
+    """Decimal con formato chileno: 2.210,64."""
+    return f"{value:,.{places}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def _check(prueba: str, capa: str, verifica: str, si_falla: str, ok: bool, detalle: str) -> dict:
     return {
         "prueba": prueba,
@@ -191,8 +196,7 @@ def metric_checks(model, metrics) -> list[dict]:
             "Métrica cuadra con el modelo", "published",
             "El margen por litro de exportación calculado desde fact_venta es el mismo que publica la métrica.",
             BLOCK, gap < MARGIN_TOLERANCE_CLP,
-            f"fact_venta {from_model:,.2f} y métrica {published:,.2f} CLP/L; diferencia {gap:.4f}."
-            .replace(",", "X").replace(".", ",").replace("X", "."),
+            f"fact_venta {_dec(from_model)} y métrica {_dec(published)} CLP/L; diferencia {_dec(gap, 4)}.",
         ),
     ]
 
