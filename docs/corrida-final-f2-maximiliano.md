@@ -1,18 +1,18 @@
 # Entrega 2 · Viña Vallehondo · Corrida final (F.2)
 
-Registro de la corrida integrada para F.2 y para la revisión de consistencia de F.3. Se ejecutó desde un clon limpio del repositorio, siguiendo solo los comandos del README, el 16 de noviembre de 2026 entre las 19:54 y las 19:59 (hora de Chile), en macOS con Python 3.12.13, sobre `main` en el commit `6c970ab`. Esa versión incluye el modelo estrella y las pruebas de calidad dentro de la cadena (PR #17) y el prototipo en Streamlit.
+Registro de la corrida integrada para F.2 y para la revisión de consistencia de F.3. Se ejecutó desde un clon limpio del repositorio, siguiendo solo los comandos del README, el 17 de noviembre de 2026 entre las 20:55 y las 20:57 (hora de Chile), en macOS con Python 3.12.13, sobre `main` en el commit `9c1b79e`. Esa versión incluye el modelo estrella y las pruebas de calidad dentro de la cadena (PR #17), el prototipo en Streamlit y el dueño del dato en su pie (PR #20). La etiqueta `E2` apunta al commit que integra este registro, con el mismo código.
 
 ## Comandos y duración
 
 | Paso | Comando | Duración | Resultado |
 |---|---|---:|---|
 | Clonar | `git clone …/vina-vallehondo-bi.git` | 2 s | OK |
-| Instalar | `python3.12 -m venv .venv` y `.venv/bin/pip install -e ".[dev,app]"` | 30 s | OK |
-| Pruebas automáticas | `.venv/bin/python -m pytest` | 32 s | **85 pasan**, 0 fallan |
-| Cadena | `.venv/bin/python -m vina_vallehondo_bi.etl.pipeline` | 37 s | OK, publica; 11 de 11 pruebas que bloquean en verde |
-| Notebooks 02 a 05 | `jupyter nbconvert --to notebook --execute` | 13, 45, 71 y 28 s | OK |
+| Instalar | `python3.12 -m venv .venv` y `.venv/bin/pip install -e ".[dev,app]"` | 16 s | OK |
+| Pruebas automáticas | `.venv/bin/python -m pytest` | 22 s | **86 pasan**, 0 fallan |
+| Cadena | `.venv/bin/python -m vina_vallehondo_bi.etl.pipeline` | 3 s | OK, publica; 11 de 11 pruebas que bloquean en verde |
+| Notebooks 02 a 05 | `jupyter nbconvert --to notebook --execute` | 9, 6, 4 y 6 s | OK |
 
-La API de `mindicador.cl` no respondió para 2025 durante la corrida. La cadena esperó el plazo de 30 s, usó la copia versionada de ese año, lo avisó y publicó; por eso tardó 37 s en vez de los menos de 10 s habituales. Los notebooks consultan la misma API y también esperaron ese plazo. Con la API disponible, la cadena tarda menos de 10 s y los cuatro notebooks unos 35 s.
+La API de `mindicador.cl` respondió en esta corrida. En la corrida del día anterior (16-11-2026, commit `6c970ab`) no respondió para 2025: la cadena esperó el plazo de 30 s, usó la copia versionada, lo avisó y publicó con las mismas cifras en 37 s.
 
 ## Pruebas de calidad dentro de la cadena (B.5)
 
@@ -24,8 +24,8 @@ Corren en cada carga, antes de publicar (`etl/quality.py`). El resultado queda e
 | Fuente SQLite: moneda por mercado | Cada mercado informa una sola moneda | Bloquea | ✓ 11 mercados, 0 con más de una |
 | Fuente CSV de costos | Cada producto y añada vendido tiene costo, propio o imputado | Bloquea | ✓ 0 ventas sin costo (16 costos imputados) |
 | Fuente JSON de embarques | Cada línea apunta a una venta existente | Avisa | ⚠ 15 de 10.730 líneas sin venta; se excluyen en processed |
-| API mindicador.cl: origen | El dólar viene de la API y no de la copia de respaldo | Avisa | ⚠ Copia de respaldo para 2025 |
-| API mindicador.cl: rango | Cada valor está entre 500 y 1.500 CLP | Bloquea | ✓ 717 días, 0 fuera de rango |
+| API mindicador.cl: origen | El dólar viene de la API y no de la copia de respaldo | Avisa | ✓ Descargado de la API |
+| API mindicador.cl: rango | Cada valor está entre 500 y 1.500 CLP | Bloquea | ✓ 718 días, 0 fuera de rango |
 | Unicidad de la clave del hecho | venta_id único y una fila por venta limpia | Bloquea | ✓ 13.830 filas, 0 repetidas |
 | Claves sin huérfanos | Toda clave de fact_venta existe en su dimensión | Bloquea | ✓ 5 claves, 0 huérfanas |
 | Rangos válidos | Descuento entre 0 y 1; precio, litros y costo por caja mayores que cero | Bloquea | ✓ Descuento entre 0 % y 18 % |
@@ -41,11 +41,11 @@ Corren en cada carga, antes de publicar (`etl/quality.py`). El resultado queda e
 | Staging | `stg_ventas` | 13.968 (695 sin moneda) |
 | Staging | `stg_costos_productos` | 81 (1 sin costo) |
 | Staging | `stg_embarques` | 10.730 |
-| Staging | `stg_tipo_cambio` | 717 |
+| Staging | `stg_tipo_cambio` | 718 |
 | Processed | `ventas` | 13.830 |
 | Processed | `costos_productos` | 96 |
 | Processed | `embarques` | 10.715 |
-| Processed | `tipo_cambio` | 686 |
+| Processed | `tipo_cambio` | 687 |
 | Published | `fact_venta` | 13.830 |
 | Published | `dim_tiempo`, `dim_mercado`, `dim_cliente`, `dim_producto` | 408, 11, 26 y 96 |
 | Published | `margen_por_mercado` | 132 |
@@ -77,7 +77,7 @@ Vista principal: reglas de Finanzas, CLP, dólar de factura y base completa, sal
 
 ## Tablero
 
-Publicado en <https://vina-vallehondo-g7.streamlit.app/>. La rama que usa Streamlit Community Cloud quedó en el mismo commit que `main`. El prototipo lee solo `data/published/`, muestra el escenario comercial (783,81 MM CLP y 23,27 %) y, si la corrida usó la copia del dólar, avisa con los años afectados y la fecha del último dato. El pie indica la fecha de la corrida, el origen del tipo de cambio y las pruebas en verde.
+Publicado en <https://vina-vallehondo-g7.streamlit.app/>. La rama que usa Streamlit Community Cloud queda en el mismo commit que `main`. El prototipo lee solo `data/published/`, muestra el escenario comercial (783,81 MM CLP y 23,27 %) y, si la corrida usó la copia del dólar, avisa con los años afectados y la fecha del último dato. El pie indica la fecha de la corrida, el origen del tipo de cambio y las pruebas en verde.
 
 ## Problemas encontrados y cómo se resolvieron
 
