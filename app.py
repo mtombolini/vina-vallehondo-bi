@@ -30,8 +30,8 @@ TABLAS = ("margen_por_mercado.csv", "caso_descuento_brasil.csv", "escenarios_mez
 FOCO = "Brasil"
 TOTAL = "Total exportación"
 
-# Textos del pie que no salen de los datos. Ajustar con B.7 (acuerdo de servicio).
-DUENO_DATO = "Gerencia de Finanzas (por confirmar en B.7)"
+# Textos del pie que no salen de los datos. El dueño es el mismo cargo de B.7 y E.7 del informe.
+DUENO_DATO = "Jefatura de Control de Gestión, Gerencia de Finanzas"
 CERTIFICACION = "Finanzas confirmó el dólar observado de factura como referencia contable (11-nov-2026)"
 
 ETIQUETA_CRITERIO = {"reglas_finanzas": "Finanzas", "e1": "Nuestra (E1)"}
