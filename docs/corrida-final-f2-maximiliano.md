@@ -1,18 +1,18 @@
 # Entrega 2 · Viña Vallehondo · Corrida final (F.2)
 
-Registro de la corrida integrada para F.2 y para la revisión de consistencia de F.3. Se ejecutó desde un clon limpio del repositorio, siguiendo solo los comandos del README, el 17 de noviembre de 2026 entre las 20:55 y las 20:57 (hora de Chile), en macOS con Python 3.12.13, sobre `main` en el commit `9c1b79e`. Esa versión incluye el modelo estrella y las pruebas de calidad dentro de la cadena (PR #17), el prototipo en Streamlit y el dueño del dato en su pie (PR #20). La etiqueta `E2` apunta al commit que integra este registro, con el mismo código.
+Registro de la corrida integrada para F.2 y para la revisión de consistencia de F.3. Se ejecutó desde un clon limpio del repositorio, siguiendo solo los comandos del README, el 18 de noviembre de 2026 entre las 15:38 y las 15:41 (hora de Chile), en macOS con Python 3.12.13, sobre `main` en el commit `b578ab3`. Esa versión incluye el modelo estrella y las pruebas de calidad dentro de la cadena (PR #17), el rediseño del prototipo tras la prueba de uso (PR #21), los títulos y figuras de hallazgos de los cuadernos (PR #22) y las cifras del escenario de descuento con los decimales del informe (PR #23). La etiqueta `E2` apunta al commit que integra este registro, con el mismo código.
 
 ## Comandos y duración
 
 | Paso | Comando | Duración | Resultado |
 |---|---|---:|---|
-| Clonar | `git clone …/vina-vallehondo-bi.git` | 2 s | OK |
-| Instalar | `python3.12 -m venv .venv` y `.venv/bin/pip install -e ".[dev,app]"` | 16 s | OK |
-| Pruebas automáticas | `.venv/bin/python -m pytest` | 22 s | **86 pasan**, 0 fallan |
-| Cadena | `.venv/bin/python -m vina_vallehondo_bi.etl.pipeline` | 3 s | OK, publica; 11 de 11 pruebas que bloquean en verde |
-| Notebooks 02 a 05 | `jupyter nbconvert --to notebook --execute` | 9, 6, 4 y 6 s | OK |
+| Clonar | `git clone …/vina-vallehondo-bi.git` | 5 s | OK |
+| Instalar | `python3.12 -m venv .venv` y `.venv/bin/pip install -e ".[dev,app]"` | 27 s | OK |
+| Pruebas automáticas | `.venv/bin/python -m pytest` | 32 s | **86 pasan**, 0 fallan |
+| Cadena | `.venv/bin/python -m vina_vallehondo_bi.etl.pipeline` | 33 s | OK, publica; 11 de 11 pruebas que bloquean en verde |
+| Notebooks 02 a 05 | `jupyter nbconvert --to notebook --execute` | 13, 34, 5 y 4 s | OK |
 
-La API de `mindicador.cl` respondió en esta corrida. En la corrida del día anterior (16-11-2026, commit `6c970ab`) no respondió para 2025: la cadena esperó el plazo de 30 s, usó la copia versionada, lo avisó y publicó con las mismas cifras en 37 s.
+La API de `mindicador.cl` no respondió durante esta corrida (error de conexión de su lado). La cadena esperó el plazo, usó las copias versionadas de 2024 a 2026 (con datos hasta el 17-11-2026), lo avisó y publicó con las mismas cifras; por eso tardó 33 s. Con la API disponible tarda unos 3 s, como en la corrida del 17-11-2026 sobre `9c1b79e`.
 
 ## Pruebas de calidad dentro de la cadena (B.5)
 
@@ -24,8 +24,8 @@ Corren en cada carga, antes de publicar (`etl/quality.py`). El resultado queda e
 | Fuente SQLite: moneda por mercado | Cada mercado informa una sola moneda | Bloquea | ✓ 11 mercados, 0 con más de una |
 | Fuente CSV de costos | Cada producto y añada vendido tiene costo, propio o imputado | Bloquea | ✓ 0 ventas sin costo (16 costos imputados) |
 | Fuente JSON de embarques | Cada línea apunta a una venta existente | Avisa | ⚠ 15 de 10.730 líneas sin venta; se excluyen en processed |
-| API mindicador.cl: origen | El dólar viene de la API y no de la copia de respaldo | Avisa | ✓ Descargado de la API |
-| API mindicador.cl: rango | Cada valor está entre 500 y 1.500 CLP | Bloquea | ✓ 718 días, 0 fuera de rango |
+| API mindicador.cl: origen | El dólar viene de la API y no de la copia de respaldo | Avisa | ⚠ Copia de respaldo para 2024, 2025 y 2026 |
+| API mindicador.cl: rango | Cada valor está entre 500 y 1.500 CLP | Bloquea | ✓ 717 días, 0 fuera de rango |
 | Unicidad de la clave del hecho | venta_id único y una fila por venta limpia | Bloquea | ✓ 13.830 filas, 0 repetidas |
 | Claves sin huérfanos | Toda clave de fact_venta existe en su dimensión | Bloquea | ✓ 5 claves, 0 huérfanas |
 | Rangos válidos | Descuento entre 0 y 1; precio, litros y costo por caja mayores que cero | Bloquea | ✓ Descuento entre 0 % y 18 % |
@@ -41,12 +41,12 @@ Corren en cada carga, antes de publicar (`etl/quality.py`). El resultado queda e
 | Staging | `stg_ventas` | 13.968 (695 sin moneda) |
 | Staging | `stg_costos_productos` | 81 (1 sin costo) |
 | Staging | `stg_embarques` | 10.730 |
-| Staging | `stg_tipo_cambio` | 718 |
+| Staging | `stg_tipo_cambio` | 717 |
 | Processed | `ventas` | 13.830 |
 | Processed | `costos_productos` | 96 |
 | Processed | `embarques` | 10.715 |
-| Processed | `tipo_cambio` | 687 |
-| Published | `fact_venta` | 13.830 |
+| Processed | `tipo_cambio` | 686 |
+| Published | `fact_venta` (Parquet y CSV) | 13.830 |
 | Published | `dim_tiempo`, `dim_mercado`, `dim_cliente`, `dim_producto` | 408, 11, 26 y 96 |
 | Published | `margen_por_mercado` | 132 |
 | Published | `sensibilidad_reglas_margen` | 44 |
@@ -77,7 +77,7 @@ Vista principal: reglas de Finanzas, CLP, dólar de factura y base completa, sal
 
 ## Tablero
 
-Publicado en <https://vina-vallehondo-g7.streamlit.app/>. La rama que usa Streamlit Community Cloud queda en el mismo commit que `main`. El prototipo lee solo `data/published/`, muestra el escenario comercial (783,81 MM CLP y 23,27 %) y, si la corrida usó la copia del dólar, avisa con los años afectados y la fecha del último dato. El pie indica la fecha de la corrida, el origen del tipo de cambio y las pruebas en verde.
+Publicado en <https://vina-vallehondo-g7.streamlit.app/>. La rama que usa Streamlit Community Cloud queda en el mismo commit que `main`. El prototipo lee solo `data/published/`, muestra el escenario comercial (783,81 MM CLP y 23,27 %) y, si la corrida usó la copia del dólar, avisa con los años afectados y la fecha del último dato. El pie indica la fecha de la corrida, el origen del tipo de cambio y las pruebas en verde. Después de la prueba de uso se rediseñó (PR #21): respuesta escrita arriba, «mercado típico (mediana de los 10 mercados)», tarjetas sin texto cortado, serie mensual del mercado destacado y detalle por cliente, producto y factura desde `fact_venta`, con descarga a Excel.
 
 ## Problemas encontrados y cómo se resolvieron
 
