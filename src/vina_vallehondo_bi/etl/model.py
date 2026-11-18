@@ -59,16 +59,20 @@ def reliable_shipment_dates(shipments: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_dimensions(staging, processed) -> dict[str, pd.DataFrame]:
-    markets = processed["mercados"][["mercado_id", "pais", "zona", "canal"]].copy()
+    markets = processed["mercados"][[
+        "mercado_id", "pais", "zona", "canal"]].copy()
     markets["hemisferio"] = markets["pais"].map(HEMISPHERE_BY_COUNTRY)
-    markets["moneda_facturacion"] = markets["mercado_id"].map(market_currency(staging))
+    markets["moneda_facturacion"] = markets["mercado_id"].map(
+        market_currency(staging))
 
-    customers = processed["clientes"][["cliente_id", "nombre", "tipo"]].drop_duplicates("cliente_id")
+    customers = processed["clientes"][["cliente_id",
+                                       "nombre", "tipo"]].drop_duplicates("cliente_id")
 
     wine_type = staging["stg_cepas"][["cepa", "tipo"]].drop_duplicates("cepa")
     products = (
         processed["costos_productos"][
-            ["producto_id", "anada", "producto", "cepa", "tier", "formato", "litros_por_caja", "costo_caja_clp"]
+            ["producto_id", "anada", "producto", "cepa", "tier",
+                "formato", "litros_por_caja", "costo_caja_clp"]
         ]
         .sort_values(["producto_id", "anada"])
         .reset_index(drop=True)
@@ -82,11 +86,13 @@ def build_dimensions(staging, processed) -> dict[str, pd.DataFrame]:
 
     shipped = reliable_shipment_dates(processed["embarques"])["fecha_embarque"]
     dates = pd.concat([processed["ventas"]["fecha"], shipped]).dropna()
-    calendar = pd.DataFrame({"fecha": pd.date_range(dates.min().normalize(), dates.max().normalize(), freq="D")})
+    calendar = pd.DataFrame({"fecha": pd.date_range(
+        dates.min().normalize(), dates.max().normalize(), freq="D")})
     calendar["anio"] = calendar["fecha"].dt.year
     calendar["mes"] = calendar["fecha"].dt.month
     calendar["trimestre"] = "T" + calendar["fecha"].dt.quarter.astype(str)
-    calendar["semestre"] = "S" + calendar["mes"].sub(1).floordiv(6).add(1).astype(str)
+    calendar["semestre"] = "S" + \
+        calendar["mes"].sub(1).floordiv(6).add(1).astype(str)
     calendar["estacion_hemisferio_sur"] = calendar["mes"].map(SOUTHERN_SEASON)
 
     return {
@@ -99,10 +105,12 @@ def build_dimensions(staging, processed) -> dict[str, pd.DataFrame]:
 
 def build_fact(staging, processed, dimensions) -> pd.DataFrame:
     products = dimensions["dim_producto"][
-        ["producto_id", "anada", "producto_anada_key", "litros_por_caja", "costo_caja_clp"]
+        ["producto_id", "anada", "producto_anada_key",
+            "litros_por_caja", "costo_caja_clp"]
     ]
     currency = dimensions["dim_mercado"][["mercado_id", "moneda_facturacion"]]
-    registered = staging["stg_ventas"][["fila_origen", "monto_neto"]].rename(columns={"monto_neto": "neto_registrado"})
+    registered = staging["stg_ventas"][["fila_origen", "monto_neto"]].rename(
+        columns={"monto_neto": "neto_registrado"})
     fact = (
         processed["ventas"]
         .merge(registered, on="fila_origen", how="left", validate="one_to_one")
@@ -115,20 +123,24 @@ def build_fact(staging, processed, dimensions) -> pd.DataFrame:
     in_clp = fact["moneda_facturacion"].eq("CLP")
     # El CLP se convierte a sí mismo; el USD con el dólar observado de cada fecha.
     sale_rate = fact["fecha"].map(rates).mask(in_clp, 1.0)
-    shipment_rate = fact["fecha_embarque"].map(rates).mask(in_clp & fact["fecha_embarque"].notna(), 1.0)
+    shipment_rate = fact["fecha_embarque"].map(rates).mask(
+        in_clp & fact["fecha_embarque"].notna(), 1.0)
 
     # Monto registrado; en las ventas con cajas x10 también se divide el monto.
-    net = fact["neto_registrado"].mask(fact["ajuste_cajas"].eq("dividido_por_10"), fact["neto_registrado"] / 10)
+    net = fact["neto_registrado"].mask(fact["ajuste_cajas"].eq(
+        "dividido_por_10"), fact["neto_registrado"] / 10)
     fact["litros"] = fact["cajas"] * fact["litros_por_caja"]
     fact["monto_bruto"] = fact["cajas"] * fact["precio_unitario"]
     fact["ingreso_neto_moneda_original"] = net
     fact["monto_descuento"] = fact["monto_bruto"] - net
     fact["monto_bruto_clp"] = fact["monto_bruto"] * sale_rate
     fact["ingreso_neto_clp_fecha_venta"] = net * sale_rate
-    fact["monto_descuento_clp"] = fact["monto_bruto_clp"] - fact["ingreso_neto_clp_fecha_venta"]
+    fact["monto_descuento_clp"] = fact["monto_bruto_clp"] - \
+        fact["ingreso_neto_clp_fecha_venta"]
     fact["ingreso_neto_clp_fecha_embarque"] = net * shipment_rate
     # La caja descartada no vuelve a inventario: la merma no revierte costo.
-    fact["costo_total_clp"] = fact["cajas"].clip(lower=0) * fact["costo_caja_clp"]
+    fact["costo_total_clp"] = fact["cajas"].clip(
+        lower=0) * fact["costo_caja_clp"]
     return fact[FACT_COLUMNS].reset_index(drop=True)
 
 
@@ -143,3 +155,5 @@ def publish_model(project_root: Path, model: dict[str, pd.DataFrame]) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     for name, table in model.items():
         table.to_parquet(destination / f"{name}.parquet", index=False)
+        if name == "fact_venta":
+            table.to_csv(destination / "fact_venta.csv", index=False)
