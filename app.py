@@ -298,10 +298,10 @@ tarjeta(k3, "Litros con margen calculado (cobertura)",
         f"De {destacado}. Toda la exportación: {num(total['cobertura_litros_pct'], 1)} %"
         + (" (ventas con fecha de embarque)" if comparar else ""))
 tarjeta(k4, f"Costo del descuento extra de {FOCO}",
-        f"{num(fila_caso['escenario_descuento_comercial_clp'] / 1e6, 1)} MM CLP",
+        f"{num(fila_caso['escenario_descuento_comercial_clp'] / 1e6, 2)} MM CLP",
         f"Margen al año si su descuento ({num(fila_caso['descuento_comercial_brasil_pct'], 2)} %) fuera el "
         f"del resto ({num(fila_caso['descuento_comercial_resto_pct'], 2)} %). Cada punto de descuento: "
-        f"{num(fila_caso['un_punto_descuento_clp'] / 1e6, 1)} MM CLP")
+        f"{num(fila_caso['un_punto_descuento_clp'] / 1e6, 2)} MM CLP")
 st.write("")
 
 # ---------------------------------------------------------------- 5. gráfico principal
@@ -421,7 +421,7 @@ with izq:
 with der:
     brecha = fila_caso["brecha_mediana_clp"] / 1e6
     por_desc = fila_caso["escenario_descuento_comercial_clp"] / 1e6
-    st.subheader(f"El descuento explica {num(por_desc / brecha * 100, 0)} % de lo que {FOCO} deja de ganar")
+    st.subheader(f"El descuento explica {num(por_desc / brecha * 100, 1)} % de lo que {FOCO} deja de ganar")
     st.caption(
         f"Margen que {FOCO} deja de ganar al año frente a un mercado típico, en MM CLP (CLP, dólar de "
         "factura). El costo del descuento supone volumen fijo."
@@ -431,9 +431,9 @@ with der:
                   f"{num(fila_caso['descuento_comercial_resto_pct'], 1)} %)", "Otros factores (mezcla, precio, costo)"],
         "valor": [por_desc, brecha - por_desc], "orden": [0, 1],
     })
-    partes["etq"] = partes["valor"].map(lambda v: f"{num(v, 1)} MM")
+    partes["etq"] = partes["valor"].map(lambda v: f"{num(v, 2)} MM")
     barra = alt.Chart(partes).mark_bar(height=38).encode(
-        x=alt.X("sum(valor):Q", title=f"Brecha total frente a un mercado típico: {num(brecha, 1)} MM CLP",
+        x=alt.X("sum(valor):Q", title=f"Brecha total frente a un mercado típico: {num(brecha, 2)} MM CLP",
                 axis=alt.Axis(labels=False, ticks=False, grid=False)),
         color=alt.Color("parte:N", scale=alt.Scale(domain=partes["parte"].tolist(), range=[AZUL, GRIS]),
                         legend=alt.Legend(orient="top", title=None, labelLimit=400, direction="vertical")),
@@ -447,8 +447,8 @@ with der:
                     .configure_legend(labelFontSize=12, labelColor="#111"), width="stretch")
     st.markdown(
         f"- **Punto de equilibrio:** si el descuento de {FOCO} bajara al del resto, su margen total se "
-        f"mantiene mientras el volumen no caiga más de **{num(fila_caso['perdida_volumen_equilibrio_comercial_pct'], 1)} %**.\n"
-        f"- **Un punto de descuento** en {FOCO} vale **{num(fila_caso['un_punto_descuento_clp'] / 1e6, 1)} MM CLP** "
+        f"mantiene mientras el volumen no caiga más de **{num(fila_caso['perdida_volumen_equilibrio_comercial_pct'], 2)} %**.\n"
+        f"- **Un punto de descuento** en {FOCO} vale **{num(fila_caso['un_punto_descuento_clp'] / 1e6, 2)} MM CLP** "
         "de margen al año.\n"
         "- **Un punto de mezcla** (pasar el 1 % de los litros de Varietal a un nivel superior):\n"
         + "".join(
